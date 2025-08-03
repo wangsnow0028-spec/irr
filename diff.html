@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人养老金IRR计算器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .results {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #27ae60;
+        }
+        .cash-flow-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .cash-flow-table th, .cash-flow-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .cash-flow-table th {
+            background: linear-gradient(45deg, #34495e, #2c3e50);
+            color: white;
+            font-weight: 600;
+        }
+        .cash-flow-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .cash-flow-table tr:hover {
+            background-color: #e3f2fd;
+        }
+        .highlight {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: 600;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .analysis {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>个人养老金IRR计算器</h1>
+        
+        <div class="input-section">
+            <h3>投资参数设置</h3>
+            <div class="input-group">
+                <label for="annualDeposit">年存入金额 (元):</label>
+                <input type="number" id="annualDeposit" value="12000">
+            </div>
+            <div class="input-group">
+                <label for="annualTaxDeduction">年抵税金额 (元):</label>
+                <input type="number" id="annualTaxDeduction" value="2400">
+            </div>
+            <div class="input-group">
+                <label for="startYear">开始投资年份:</label>
+                <input type="number" id="startYear" value="2024">
+            </div>
+            <div class="input-group">
+                <label for="retireYear">退休年份:</label>
+                <input type="number" id="retireYear" value="2045">
+            </div>
+            <div class="input-group">
+                <label for="investmentReturn">投资年化收益率 (%):</label>
+                <input type="number" id="investmentReturn" value="3" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="withdrawalTax">提取时税率 (%):</label>
+                <input type="number" id="withdrawalTax" value="3" step="0.1">
+            </div>
+            <button onclick="calculate()">计算IRR</button>
+        </div>
+
+        <div id="results" class="results" style="display:none;">
+            <h3>计算结果</h3>
+            <div id="irrResult" class="highlight"></div>
+            <div id="summary"></div>
+            <div id="analysis" class="analysis"></div>
+            <table id="cashFlowTable" class="cash-flow-table">
+                <thead>
+                    <tr>
+                        <th>年份</th>
+                        <th>存入金额</th>
+                        <th>抵税收益</th>
+                        <th>净现金流出</th>
+                        <th>累计投资</th>
+                        <th>账户余额</th>
+                    </tr>
+                </thead>
+                <tbody id="cashFlowBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            const annualDeposit = parseFloat(document.getElementById('annualDeposit').value);
+            const annualTaxDeduction = parseFloat(document.getElementById('annualTaxDeduction').value);
+            const startYear = parseInt(document.getElementById('startYear').value);
+            const retireYear = parseInt(document.getElementById('retireYear').value);
+            const investmentReturn = parseFloat(document.getElementById('investmentReturn').value) / 100;
+            const withdrawalTax = parseFloat(document.getElementById('withdrawalTax').value) / 100;
+
+            // 计算现金流
+            const cashFlows = [];
+            const tableData = [];
+            let accountBalance = 0;
+            let totalInvestment = 0;
+
+            // 投资期现金流
+            for (let year = startYear; year < retireYear; year++) {
+                const isFirstYear = (year === startYear);
+                
+                // 存入金额（负数，表示流出）
+                const deposit = -annualDeposit;
+                
+                // 抵税收益（正数，但第一年在次年才收到）
+                const taxBenefit = isFirstYear ? 0 : annualTaxDeduction;
+                
+                // 净现金流
+                const netCashFlow = deposit + taxBenefit;
+                cashFlows.push(netCashFlow);
+                
+                // 计算账户余额
+                accountBalance = (accountBalance + annualDeposit) * (1 + investmentReturn);
+                totalInvestment += annualDeposit;
+                
+                tableData.push({
+                    year: year,
+                    deposit: annualDeposit,
+                    taxBenefit: taxBenefit,
+                    netCashFlow: netCashFlow,
+                    totalInvestment: totalInvestment,
+                    accountBalance: accountBalance
+                });
+            }
+
+            // 最后一年的抵税收益
+            const finalTaxBenefit = annualTaxDeduction;
+            
+            // 退休年份的提取（正数，表示流入）
+            const grossWithdrawal = accountBalance;
+            const taxOnWithdrawal = grossWithdrawal * withdrawalTax;
+            const netWithdrawal = grossWithdrawal - taxOnWithdrawal;
+            const finalCashFlow = netWithdrawal + finalTaxBenefit;
+            
+            cashFlows.push(finalCashFlow);
+            
+            tableData.push({
+                year: retireYear,
+                deposit: 0,
+                taxBenefit: finalTaxBenefit,
+                netCashFlow: finalCashFlow,
+                totalInvestment: totalInvestment,
+                accountBalance: 0,
+                withdrawal: netWithdrawal,
+                taxPaid: taxOnWithdrawal
+            });
+
+            // 计算IRR
+            const irr = calculateIRR(cashFlows);
+            
+            // 显示结果
+            displayResults(irr, cashFlows, tableData, grossWithdrawal, netWithdrawal, taxOnWithdrawal, totalInvestment);
+        }
+
+        function calculateIRR(cashFlows) {
+            // 使用牛顿-拉夫逊方法计算IRR
+            let rate = 0.1; // 初始猜测值
+            const maxIterations = 1000;
+            const tolerance = 1e-6;
+            
+            for (let i = 0; i < maxIterations; i++) {
+                let npv = 0;
+                let dnpv = 0;
+                
+                for (let t = 0; t < cashFlows.length; t++) {
+                    const cf = cashFlows[t];
+                    npv += cf / Math.pow(1 + rate, t + 1);
+                    dnpv -= (t + 1) * cf / Math.pow(1 + rate, t + 2);
+                }
+                
+                if (Math.abs(npv) < tolerance) {
+                    return rate;
+                }
+                
+                rate = rate - npv / dnpv;
+            }
+            
+            return rate;
+        }
+
+        function displayResults(irr, cashFlows, tableData, grossWithdrawal, netWithdrawal, taxPaid, totalInvestment) {
+            const resultsDiv = document.getElementById('results');
+            const irrResult = document.getElementById('irrResult');
+            const summary = document.getElementById('summary');
+            const analysis = document.getElementById('analysis');
+            const cashFlowBody = document.getElementById('cashFlowBody');
+
+            // IRR结果
+            irrResult.innerHTML = `内部收益率 (IRR): <strong>${(irr * 100).toFixed(2)}%</strong>`;
+
+            // 投资摘要
+            const totalTaxBenefit = tableData.reduce((sum, row) => sum + row.taxBenefit, 0);
+            const investmentPeriod = tableData.length - 1;
+            
+            summary.innerHTML = `
+                <h4>投资摘要:</h4>
+                <p><strong>投资期间:</strong> ${investmentPeriod} 年</p>
+                <p><strong>总投入:</strong> ${totalInvestment.toLocaleString()} 元</p>
+                <p><strong>总抵税收益:</strong> ${totalTaxBenefit.toLocaleString()} 元</p>
+                <p><strong>实际净投入:</strong> ${(totalInvestment - totalTaxBenefit).toLocaleString()} 元</p>
+                <p><strong>账户总余额:</strong> ${grossWithdrawal.toLocaleString()} 元</p>
+                <p><strong>提取税费:</strong> ${taxPaid.toLocaleString()} 元</p>
+                <p><strong>实际到手金额:</strong> ${netWithdrawal.toLocaleString()} 元</p>
+            `;
+
+            // 投资分析
+            let analysisText = `
+                <h4>投资分析:</h4>
+                <p><strong>IRR分析:</strong> 您的内部收益率为 ${(irr * 100).toFixed(2)}%，`;
+            
+            if (irr > 0.05) {
+                analysisText += `这是一个相当不错的收益率，明显高于通胀水平和银行存款利率。</p>`;
+            } else if (irr > 0.03) {
+                analysisText += `这个收益率较为合理，基本跑平通胀。</p>`;
+            } else {
+                analysisText += `这个收益率相对较低，需要谨慎考虑。</p>`;
+            }
+            
+            analysisText += `
+                <p><strong>税收优势:</strong> 通过年度抵税，您总共节省了 ${totalTaxBenefit.toLocaleString()} 元的税费。</p>
+                <p><strong>建议:</strong> `;
+            
+            if (irr > 0.04) {
+                analysisText += `这笔投资是划算的，建议继续执行这个投资计划。`;
+            } else {
+                analysisText += `收益率偏低，建议对比其他投资选项后再做决定。`;
+            }
+            
+            analysisText += `</p>`;
+            analysis.innerHTML = analysisText;
+
+            // 现金流表格
+            cashFlowBody.innerHTML = '';
+            tableData.forEach(row => {
+                const tr = document.createElement('tr');
+                if (row.year === tableData[tableData.length - 1].year) {
+                    tr.innerHTML = `
+                        <td>${row.year}</td>
+                        <td>-</td>
+                        <td>${row.taxBenefit.toLocaleString()}</td>
+                        <td style="color: green; font-weight: bold;">+${row.netCashFlow.toLocaleString()}</td>
+                        <td>${row.totalInvestment.toLocaleString()}</td>
+                        <td style="color: green; font-weight: bold;">提取: ${row.withdrawal.toLocaleString()}</td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td>${row.year}</td>
+                        <td>${row.deposit.toLocaleString()}</td>
+                        <td>${row.taxBenefit.toLocaleString()}</td>
+                        <td style="color: red;">${row.netCashFlow.toLocaleString()}</td>
+                        <td>${row.totalInvestment.toLocaleString()}</td>
+                        <td>${row.accountBalance.toLocaleString()}</td>
+                    `;
+                }
+                cashFlowBody.appendChild(tr);
+            });
+
+            resultsDiv.style.display = 'block';
+        }
+
+        // 页面加载时自动计算
+        window.onload = function() {
+            calculate();
+        };
+    </script>
+</body>
+</html>
